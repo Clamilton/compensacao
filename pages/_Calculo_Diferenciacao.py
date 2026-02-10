@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 
+# Configuração da Página
+st.set_page_config(page_title="Calc Tributária", layout="centered")
+
 # --- Inicialização da Memória (Session State) ---
 if 'fator_inversao' not in st.session_state:
     st.session_state.fator_inversao = 1
@@ -113,7 +116,7 @@ with st.container(border=True):
     with col2:
         pct_input = st.number_input("Variação (%)", value=12.3, step=0.1, format="%.2f")
 
-    # Seletor de Período
+    # NOVO: Seletor de Período
     periodo_opcao = st.radio(
         "Período de Compensação:",
         ["3 Meses (Trimestre)", "2 Meses (Bimestre)"],
@@ -124,4 +127,30 @@ with st.container(border=True):
 if st.button("Calcular Distribuição (Alternar Padrão)", type="primary"):
     
     if valor_input == 0:
-        st.warning
+        st.warning("Por favor, digite um valor maior que zero.")
+    else:
+        st.session_state.fator_inversao *= -1
+        usar_inversao = (st.session_state.fator_inversao == -1)
+        
+        # Passamos a nova opção 'periodo_opcao' para a função
+        dados, status_msg = calcular_distribuicao_completa(valor_input, pct_input, usar_inversao, periodo_opcao)
+        
+        df_visual = pd.DataFrame(dados)[["Mês", "Valor PIS (1,65%)", "Valor COFINS (7,60%)", "Total do Mês"]]
+        
+        if usar_inversao:
+            st.info(status_msg, icon="🔄")
+        else:
+            st.success(status_msg, icon="✅")
+        
+        st.subheader("Resultado (Copie e Cole)")
+        st.dataframe(df_visual, use_container_width=True, hide_index=True)
+        
+        # Prova Real
+        total_geral = sum([d['_total_raw'] for d in dados])
+        dif = total_geral - valor_input
+        
+        st.markdown("---")
+        if abs(dif) < 0.01:
+            st.caption(f"Validação Matemática: R$ {formatar_brl(total_geral)} (Perfeito)")
+        else:
+            st.error(f"Erro de arredondamento: {dif}")
