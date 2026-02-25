@@ -18,7 +18,7 @@ DE_PARA_IMPOSTOS = {
     "0561": "IRRF", "0588": "IRRF", "1138": "CP PATRONAL",
     "1099": "CP SEGURADOS", "1082": "CP TERCEIROS", "2089": "IRPJ",
     "2372": "CSLL", "8109": "PIS", "2172": "COFINS",
-    "6912": "PIS", "5952": "PIS/COFINS/CSLL"
+    "6912": "PIS", "5952": "PIS/COFINS/CSLL", "5952" : "CSRF"
 }
 
 # --- FUNÇÕES ---
@@ -190,3 +190,4 @@ if uploaded_files and st.button("⚙️ Processar Arquivos"):
         st.download_button("📥 Baixar Excel", buffer.getvalue(), f"Perdcomp_{int(time.time())}.xlsx")
     else:
         st.error("Nenhum dado encontrado.")
+
