@@ -19,7 +19,8 @@ DE_PARA_IMPOSTOS = {
     "1099": "CP SEGURADOS", "1082": "CP TERCEIROS", "2089": "IRPJ",
     "2372": "CSLL", "8109": "PIS", "2172": "COFINS",
     "6912": "PIS", "5952": "PIS/COFINS/CSLL", "5952" : "CSRF",
-    "5960": "CSRF", "1170": "CP TERCEIROS"
+    "5960": "CSRF", "1170": "CP TERCEIROS", "5979" : "CSRF",
+    "5987" : "CSRF"
 }
 
 # --- FUNÇÕES ---
