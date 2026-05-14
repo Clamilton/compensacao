@@ -13,9 +13,9 @@ REPO="https://github.com/Clamilton/compensacao.git"
 BRANCH="claude/lol-score-tracker-MXLzA"
 ADMIN_PASS="x5admin"
 
-# Credenciais Supabase (mesmas do sistema-van)
-DB_POOL="postgresql://postgres.onbtkypwvsvnkicupqxe:TnV%26mnrRR%2365@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DB_DIRECT="postgresql://postgres.onbtkypwvsvnkicupqxe:TnV%26mnrRR%2365@db.onbtkypwvsvnkicupqxe.supabase.co:5432/postgres"
+# Credenciais Supabase (projeto veted)
+DB_POOL="postgresql://postgres.rqrdddcegqtypcgtfmwv:TnV%26mnrRR%2365@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DB_DIRECT="postgresql://postgres:TnV%26mnrRR%2365@db.rqrdddcegqtypcgtfmwv.supabase.co:5432/postgres"
 
 echo "============================================"
 echo " X5 Tracker — Setup na VPS"
