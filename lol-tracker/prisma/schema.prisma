@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Season {
+  id        Int          @id @default(autoincrement())
+  name      String
+  active    Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  stats     PlayerStat[]
+  matches   Match[]
+}
+
+model Player {
+  id           Int           @id @default(autoincrement())
+  nick         String        @unique
+  createdAt    DateTime      @default(now())
+  active       Boolean       @default(true)
+  stats        PlayerStat[]
+  matchPlayers MatchPlayer[]
+}
+
+model PlayerStat {
+  id       Int    @id @default(autoincrement())
+  playerId Int
+  seasonId Int
+  wins     Int    @default(0)
+  losses   Int    @default(0)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  season   Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, seasonId])
+}
+
+model Match {
+  id         Int           @id @default(autoincrement())
+  seasonId   Int
+  createdAt  DateTime      @default(now())
+  winnerTeam Int
+  season     Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  players    MatchPlayer[]
+}
+
+model MatchPlayer {
+  id       Int    @id @default(autoincrement())
+  matchId  Int
+  playerId Int
+  team     Int
+  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
