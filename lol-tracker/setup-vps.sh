@@ -1,16 +1,21 @@
 #!/bin/bash
 # Setup do X5 Tracker (veted.online) na VPS
 # Rode como root na VPS:
-#   bash setup-vps.sh
+#   bash /var/www/veted/repo/lol-tracker/setup-vps.sh
 
 set -e
 
-REMOTE_DIR="/var/www/veted"
-APP_PORT=3001
+REPO_DIR="/var/www/veted/repo"
+APP_DIR="$REPO_DIR/lol-tracker"
+APP_PORT=3002
 DOMAIN="veted.online"
 REPO="https://github.com/Clamilton/compensacao.git"
 BRANCH="claude/lol-score-tracker-MXLzA"
-ADMIN_PASS="x5admin"   # mude se quiser
+ADMIN_PASS="x5admin"
+
+# Credenciais Supabase (mesmas do sistema-van)
+DB_POOL="postgresql://postgres.onbtkypwvsvnkicupqxe:TnV%26mnrRR%2365@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DB_DIRECT="postgresql://postgres.onbtkypwvsvnkicupqxe:TnV%26mnrRR%2365@db.onbtkypwvsvnkicupqxe.supabase.co:5432/postgres"
 
 echo "============================================"
 echo " X5 Tracker — Setup na VPS"
@@ -31,88 +36,83 @@ echo ""
 echo "▶ Verificando PM2..."
 if ! pm2 --version &>/dev/null; then
   npm install -g pm2
-  pm2 startup systemd -u root --hp /root | tail -1 | bash
 fi
-echo "  ✅ PM2 $(pm2 --version)"
+echo "  ✅ PM2 ok"
 
 # ── 3. Clonar / atualizar repositório ────────────────────────────────────
 echo ""
-echo "▶ Clonando repositório..."
-if [ -d "$REMOTE_DIR/.git" ]; then
-  echo "  Atualizando repositório existente..."
-  git -C "$REMOTE_DIR" fetch origin
-  git -C "$REMOTE_DIR" checkout "$BRANCH"
-  git -C "$REMOTE_DIR" pull origin "$BRANCH"
+echo "▶ Repositório..."
+if [ -d "$REPO_DIR/.git" ]; then
+  echo "  Atualizando..."
+  git -C "$REPO_DIR" fetch origin
+  git -C "$REPO_DIR" checkout "$BRANCH"
+  git -C "$REPO_DIR" pull origin "$BRANCH"
 else
-  git clone --branch "$BRANCH" "$REPO" "$REMOTE_DIR"
+  git clone --branch "$BRANCH" "$REPO" "$REPO_DIR"
 fi
-echo "  ✅ Repositório em $REMOTE_DIR"
+echo "  ✅ Repositório ok"
 
-# ── 4. Entrar na pasta do app ─────────────────────────────────────────────
-cd "$REMOTE_DIR/lol-tracker"
-
-# ── 5. .env ───────────────────────────────────────────────────────────────
+# ── 4. .env ───────────────────────────────────────────────────────────────
 echo ""
 echo "▶ Criando .env..."
-mkdir -p "$REMOTE_DIR/data"
-cat > .env << ENVEOF
-DATABASE_URL="file:$REMOTE_DIR/data/prod.db"
+cat > "$APP_DIR/.env" << ENVEOF
+DATABASE_URL="$DB_POOL"
+DATABASE_DIRECT_URL="$DB_DIRECT"
 ADMIN_PASSWORD="$ADMIN_PASS"
 PORT=$APP_PORT
 HOSTNAME="0.0.0.0"
 ENVEOF
 echo "  ✅ .env criado"
 
-# ── 6. Instalar dependências ──────────────────────────────────────────────
+# ── 5. Instalar dependências ──────────────────────────────────────────────
 echo ""
 echo "▶ Instalando dependências..."
-npm ci --production=false
+cd "$APP_DIR"
+npm ci
 echo "  ✅ Dependências instaladas"
 
-# ── 7. Build ──────────────────────────────────────────────────────────────
+# ── 6. Build ──────────────────────────────────────────────────────────────
 echo ""
 echo "▶ Buildando aplicação..."
 npm run build
+cp -r .next/static .next/standalone/.next/static
+cp -r public .next/standalone/public
 echo "  ✅ Build concluído"
 
-# ── 8. Migração do banco ──────────────────────────────────────────────────
+# ── 7. Migração do banco ──────────────────────────────────────────────────
 echo ""
-echo "▶ Rodando migrações do banco..."
+echo "▶ Rodando migrações no Supabase..."
 npx prisma migrate deploy
 echo "  ✅ Banco migrado"
 
-# ── 9. Copiar estáticos para standalone ──────────────────────────────────
-echo ""
-echo "▶ Ajustando build standalone..."
-cp -r .next/static .next/standalone/.next/static
-cp -r public .next/standalone/public
-echo "  ✅ Estáticos copiados"
-
-# ── 10. PM2 — iniciar / reiniciar ─────────────────────────────────────────
+# ── 8. PM2 ───────────────────────────────────────────────────────────────
 echo ""
 echo "▶ Iniciando app com PM2..."
-cat > ecosystem.config.js << PMEOF
+cat > /var/www/veted/ecosystem.config.js << PMEOF
 module.exports = {
   apps: [{
     name: 'veted',
-    script: '$REMOTE_DIR/lol-tracker/.next/standalone/server.js',
-    cwd:    '$REMOTE_DIR/lol-tracker',
+    script: '$APP_DIR/.next/standalone/server.js',
+    cwd:    '$APP_DIR',
     env: {
-      NODE_ENV: 'production',
-      PORT: $APP_PORT,
-      HOSTNAME: '0.0.0.0',
+      NODE_ENV:            'production',
+      PORT:                $APP_PORT,
+      HOSTNAME:            '0.0.0.0',
+      DATABASE_URL:        '$DB_POOL',
+      ADMIN_PASSWORD:      '$ADMIN_PASS',
     },
   }],
 };
 PMEOF
 
 pm2 delete veted 2>/dev/null || true
-pm2 start ecosystem.config.js
+pm2 start /var/www/veted/ecosystem.config.js
 pm2 save
+pm2 startup systemd -u root --hp /root | tail -1 | bash
 sleep 2
-echo "  $(pm2 list | grep veted || echo 'veted iniciado')"
+echo "  $(pm2 list | grep veted)"
 
-# ── 11. Nginx ─────────────────────────────────────────────────────────────
+# ── 9. Nginx ─────────────────────────────────────────────────────────────
 echo ""
 echo "▶ Configurando Nginx para $DOMAIN..."
 cat > /etc/nginx/sites-available/veted << NGINXEOF
@@ -133,28 +133,28 @@ server {
 NGINXEOF
 
 ln -sf /etc/nginx/sites-available/veted /etc/nginx/sites-enabled/veted
-nginx -t
-systemctl reload nginx
-echo "  ✅ Nginx configurado (sistema-van intacto)"
+nginx -t && systemctl reload nginx
+echo "  ✅ Nginx configurado"
 
-# ── 12. Verificar sistema-van ─────────────────────────────────────────────
+# ── 10. Verificar sistema-van ─────────────────────────────────────────────
 echo ""
-echo "▶ Verificando sistema-van (não deve ter sido afetado)..."
+echo "▶ Verificando sistema-van..."
 echo "  status: $(systemctl is-active sistema-van)"
 
-# ── 13. SSL ───────────────────────────────────────────────────────────────
+# ── 11. SSL ───────────────────────────────────────────────────────────────
 echo ""
-echo "▶ Configurando SSL com Certbot..."
+echo "▶ Configurando SSL..."
 if ! certbot --version &>/dev/null; then
   apt-get install -y certbot python3-certbot-nginx
 fi
 certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" \
-  --non-interactive --agree-tos -m "admin@$DOMAIN"
+  --non-interactive --agree-tos -m "admin@$DOMAIN" || \
+  echo "  ⚠️  Certbot falhou — verifique se o DNS já aponta para este IP"
 
 echo ""
 echo "============================================"
 echo " ✅  Deploy concluído!"
-echo "    https://$DOMAIN"
-echo "    https://$DOMAIN/admin  (senha: $ADMIN_PASS)"
-echo "    https://$DOMAIN/balancer"
+echo "    http://$DOMAIN  (https se certbot ok)"
+echo "    Admin:       /$DOMAIN/admin  (senha: $ADMIN_PASS)"
+echo "    Balanceador: /$DOMAIN/balancer"
 echo "============================================"
