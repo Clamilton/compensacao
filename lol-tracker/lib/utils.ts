@@ -14,18 +14,23 @@ export interface TierInfo {
   textClass: string
 }
 
-export function getTier(rank: number, total: number): TierInfo {
-  if (rank === 1) {
+// Tier thresholds based on win rate %
+// >= 65%  → O MELHOR
+// >= 55%  → BOM TRABALHO
+// >= 47%  → FEZ O BASICO
+// >= 41%  → EMPENA LOBBY
+//  < 41%  → SANGRIA
+export function getTier(winRate: number): TierInfo {
+  if (winRate >= 65) {
     return { name: 'O MELHOR', bgClass: 'bg-amber-400', textClass: 'text-amber-950' }
   }
-  const pct = rank / total
-  if (pct <= 0.22) {
+  if (winRate >= 55) {
     return { name: 'BOM TRABALHO', bgClass: 'bg-green-300', textClass: 'text-green-950' }
   }
-  if (pct <= 0.44) {
+  if (winRate >= 47) {
     return { name: 'FEZ O BASICO', bgClass: 'bg-green-500', textClass: 'text-white' }
   }
-  if (pct <= 0.74) {
+  if (winRate >= 41) {
     return { name: 'EMPENA LOBBY', bgClass: 'bg-orange-100', textClass: 'text-orange-950' }
   }
   return { name: 'SANGRIA', bgClass: 'bg-red-500', textClass: 'text-white' }

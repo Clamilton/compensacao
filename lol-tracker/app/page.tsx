@@ -37,25 +37,6 @@ export default async function Home() {
 
   const total = rows.length
 
-  // Groups for the merged RANK column
-  const tierGroups: {
-    name: string
-    bgClass: string
-    textClass: string
-    span: number
-    startRow: number
-  }[] = []
-
-  rows.forEach((_, i) => {
-    const tier = getTier(i + 1, total)
-    const last = tierGroups[tierGroups.length - 1]
-    if (!last || last.name !== tier.name) {
-      tierGroups.push({ ...tier, span: 1, startRow: i })
-    } else {
-      last.span++
-    }
-  })
-
   return (
     <div>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
@@ -85,7 +66,7 @@ export default async function Home() {
           </thead>
           <tbody>
             {rows.map((row, i) => {
-              const groupEntry = tierGroups.find((g) => g.startRow === i)
+              const tier = getTier(row.winRate)
               return (
                 <tr
                   key={row.id}
@@ -119,14 +100,11 @@ export default async function Home() {
                   >
                     {row.points}
                   </td>
-                  {groupEntry && (
-                    <td
-                      rowSpan={groupEntry.span}
-                      className={`px-2 py-2 text-center text-xs font-bold tracking-wider align-middle border-l border-gray-800 ${groupEntry.bgClass} ${groupEntry.textClass}`}
-                    >
-                      {groupEntry.name}
-                    </td>
-                  )}
+                  <td
+                    className={`px-2 py-2 text-center text-xs font-bold tracking-wider border-l border-gray-800 ${tier.bgClass} ${tier.textClass}`}
+                  >
+                    {tier.name}
+                  </td>
                 </tr>
               )
             })}
