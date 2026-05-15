@@ -12,6 +12,7 @@ DOMAIN="veted.site"
 REPO="https://github.com/Clamilton/compensacao.git"
 BRANCH="claude/lol-score-tracker-MXLzA"
 ADMIN_PASS='TnV&mnrRR#65'
+AGENT_TOKEN="x5lcu2026"
 
 # Credenciais Supabase (projeto veted)
 DB_POOL="postgresql://postgres.rqrdddcegqtypcgtfmwv:TnV%26mnrRR%2312@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
@@ -59,6 +60,7 @@ cat > "$APP_DIR/.env" << ENVEOF
 DATABASE_URL="$DB_POOL"
 DATABASE_DIRECT_URL="$DB_DIRECT"
 ADMIN_PASSWORD="$ADMIN_PASS"
+AGENT_TOKEN="$AGENT_TOKEN"
 PORT=$APP_PORT
 HOSTNAME="0.0.0.0"
 ENVEOF
@@ -100,6 +102,7 @@ module.exports = {
       HOSTNAME:            '0.0.0.0',
       DATABASE_URL:        '$DB_POOL',
       ADMIN_PASSWORD:      '$ADMIN_PASS',
+      AGENT_TOKEN:         '$AGENT_TOKEN',
     },
   }],
 };

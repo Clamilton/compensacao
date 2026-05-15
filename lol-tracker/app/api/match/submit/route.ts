@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     players: PlayerPayload[]
   }
 
-  if (token !== process.env.ADMIN_PASSWORD) {
+  if (token !== process.env.AGENT_TOKEN) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -7,5 +7,6 @@ echo Gerando executavel...
 pyinstaller --onefile --name "X5-LCU-Agent" --console agent.py
 
 echo.
-echo Pronto! O executavel esta em: dist\X5-LCU-Agent.exe
+echo Pronto! Distribuir: dist\X5-LCU-Agent.exe
+echo Basta abrir o .exe enquanto o LoL estiver rodando.
 pause

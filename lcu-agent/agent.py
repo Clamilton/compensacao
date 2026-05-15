@@ -1,6 +1,6 @@
 """
 X5 Tracker — LCU Agent
-Monitora o cliente do LoL e envia resultados de partidas customizadas para o site.
+Abre e já funciona: detecta o fim de partidas customizadas e envia para veted.site.
 """
 
 import json
@@ -14,26 +14,9 @@ from pathlib import Path
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-CONFIG_FILE = Path(__file__).parent / "config.json"
-
-DEFAULT_CONFIG = {
-    "server_url": "https://veted.site",
-    "admin_token": "",
-    "poll_interval": 5,
-}
-
-
-def load_config() -> dict:
-    if CONFIG_FILE.exists():
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
-        return {**DEFAULT_CONFIG, **cfg}
-    return DEFAULT_CONFIG.copy()
-
-
-def save_config(cfg: dict):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2, ensure_ascii=False)
+SERVER_URL  = "https://veted.site"
+AGENT_TOKEN = "x5lcu2026"
+POLL_INTERVAL = 5  # segundos
 
 
 def find_lockfile() -> Path | None:
@@ -49,8 +32,7 @@ def find_lockfile() -> Path | None:
 
 
 def parse_lockfile(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
-    parts = text.strip().split(":")
+    parts = path.read_text(encoding="utf-8").strip().split(":")
     return {"port": parts[2], "password": parts[3]}
 
 
@@ -76,9 +58,7 @@ def lcu_get(session: requests.Session, path: str):
 
 def get_phase(session: requests.Session) -> str | None:
     data = lcu_get(session, "/lol-gameflow/v1/gameflow-phase")
-    if isinstance(data, str):
-        return data
-    return None
+    return data if isinstance(data, str) else None
 
 
 def get_eog_stats(session: requests.Session) -> dict | None:
@@ -86,23 +66,20 @@ def get_eog_stats(session: requests.Session) -> dict | None:
 
 
 def parse_eog(eog: dict) -> dict | None:
-    """Transforma o bloco EOG no formato esperado pela API do site."""
-    game_type = eog.get("gameType", "")
-    if game_type != "CUSTOM_GAME":
-        print(f"  Ignorando — tipo de jogo: {game_type}")
+    if eog.get("gameType") != "CUSTOM_GAME":
+        print(f"  Ignorando — tipo: {eog.get('gameType')}")
         return None
 
-    game_id = str(eog.get("gameId", ""))
-    duration = eog.get("gameLength")  # segundos
+    game_id  = str(eog.get("gameId", ""))
+    duration = eog.get("gameLength")
 
-    teams_raw = eog.get("teams", [])
+    winner_team = None
     players = []
 
-    for team_data in teams_raw:
-        team_id = team_data.get("teamId", 100)
-        team_num = 1 if team_id == 100 else 2
-        won = team_data.get("win", "").lower() == "win"
-        winner_team = team_num if won else (2 if team_num == 1 else 1)
+    for team_data in eog.get("teams", []):
+        team_num = 1 if team_data.get("teamId", 100) == 100 else 2
+        if team_data.get("win", "").lower() == "win":
+            winner_team = team_num
 
         for p in team_data.get("players", []):
             stats = p.get("stats", {})
@@ -110,7 +87,7 @@ def parse_eog(eog: dict) -> dict | None:
             players.append({
                 "nick":        p.get("summonerName", ""),
                 "team":        team_num,
-                "champion":    p.get("championName", None),
+                "champion":    p.get("championName"),
                 "kills":       stats.get("championsKilled", 0),
                 "deaths":      stats.get("numDeaths", 0),
                 "assists":     stats.get("assists", 0),
@@ -123,82 +100,42 @@ def parse_eog(eog: dict) -> dict | None:
                 "visionScore": stats.get("visionScore", 0),
             })
 
-    if not players:
+    if winner_team is None or not players:
+        print("  Não foi possível determinar vencedor.")
         return None
 
-    # winner_team foi sobrescrito na última iteração, mas precisamos definir certo
-    winner_team = None
-    for team_data in teams_raw:
-        if team_data.get("win", "").lower() == "win":
-            winner_team = 1 if team_data.get("teamId", 100) == 100 else 2
-            break
-
-    if winner_team is None:
-        print("  Não foi possível determinar o time vencedor.")
-        return None
-
-    return {
-        "gameId":     game_id,
-        "winnerTeam": winner_team,
-        "duration":   duration,
-        "players":    players,
-    }
+    return {"gameId": game_id, "winnerTeam": winner_team, "duration": duration, "players": players}
 
 
-def submit_match(cfg: dict, payload: dict) -> bool:
-    url = cfg["server_url"].rstrip("/") + "/api/match/submit"
-    body = {**payload, "token": cfg["admin_token"]}
+def submit_match(payload: dict) -> bool:
+    url = SERVER_URL.rstrip("/") + "/api/match/submit"
     try:
-        r = requests.post(url, json=body, timeout=10)
+        r = requests.post(url, json={**payload, "token": AGENT_TOKEN}, timeout=10)
         data = r.json()
         if r.ok:
             if data.get("duplicate"):
-                print(f"  ℹ️  Partida já registrada por outro agente (matchId={data.get('matchId')})")
+                print(f"  ℹ️  Já registrada por outro agente (id={data.get('matchId')})")
             else:
-                print(f"  ✅ Partida registrada! matchId={data.get('matchId')}")
+                print(f"  ✅ Partida registrada! id={data.get('matchId')}")
             if data.get("notFound"):
-                print(f"  ⚠️  Jogadores não encontrados no banco: {data['notFound']}")
+                print(f"  ⚠️  Nicks não encontrados: {data['notFound']}")
             return True
-        else:
-            print(f"  ❌ Erro da API: {data.get('error', r.text)}")
+        print(f"  ❌ Erro: {data.get('error', r.text)}")
     except Exception as e:
         print(f"  ❌ Falha ao enviar: {e}")
     return False
 
 
-def setup_wizard(cfg: dict) -> dict:
-    print("=" * 50)
-    print(" X5 Tracker — Configuração inicial")
-    print("=" * 50)
-    print()
-    url = input(f"URL do site [{cfg['server_url']}]: ").strip()
-    if url:
-        cfg["server_url"] = url
-    token = input("Senha admin: ").strip()
-    if token:
-        cfg["admin_token"] = token
-    save_config(cfg)
-    print("Configuração salva em config.json")
-    print()
-    return cfg
-
-
 def main():
-    cfg = load_config()
+    print("=" * 45)
+    print(" X5 Tracker — Agente LCU")
+    print(f" Servidor: {SERVER_URL}")
+    print("=" * 45)
+    print("Aguardando o cliente do LoL...\n")
 
-    if not cfg.get("admin_token"):
-        cfg = setup_wizard(cfg)
-
-    print("=" * 50)
-    print(" X5 Tracker — LCU Agent")
-    print(f" Servidor: {cfg['server_url']}")
-    print("=" * 50)
-    print()
-    print("Aguardando o cliente do LoL...")
-
-    session = None
+    session    = None
     last_phase = None
-    eog_sent = False
+    eog_sent   = False
 
     while True:
         lockfile = find_lockfile()
@@ -206,20 +143,20 @@ def main():
         if lockfile is None:
             if session is not None:
                 print("  Cliente fechado. Aguardando...")
-                session = None
+                session    = None
                 last_phase = None
-                eog_sent = False
-            time.sleep(cfg["poll_interval"])
+                eog_sent   = False
+            time.sleep(POLL_INTERVAL)
             continue
 
         if session is None:
             try:
-                lf = parse_lockfile(lockfile)
+                lf      = parse_lockfile(lockfile)
                 session = make_session(lf["port"], lf["password"])
-                print("  ✅ Cliente do LoL detectado!")
+                print("  ✅ Cliente do LoL detectado!\n")
             except Exception as e:
-                print(f"  Erro ao conectar ao LCU: {e}")
-                time.sleep(cfg["poll_interval"])
+                print(f"  Erro ao conectar: {e}")
+                time.sleep(POLL_INTERVAL)
                 continue
 
         phase = get_phase(session)
@@ -232,24 +169,24 @@ def main():
 
         if phase == "EndOfGame" and not eog_sent:
             print("  Partida encerrada — coletando stats...")
-            time.sleep(2)  # aguarda o servidor popular os dados
+            time.sleep(2)
 
             eog = get_eog_stats(session)
             if eog:
                 payload = parse_eog(eog)
                 if payload:
-                    print(f"  Enviando para {cfg['server_url']}...")
-                    if submit_match(cfg, payload):
+                    print(f"  Enviando para {SERVER_URL}...")
+                    if submit_match(payload):
                         eog_sent = True
                     else:
                         print("  Tentando novamente em 10s...")
                         time.sleep(10)
                 else:
-                    eog_sent = True  # não é custom, marca como enviado para não repetir
+                    eog_sent = True
             else:
-                print("  EOG stats não disponíveis ainda, tentando novamente...")
+                print("  Stats ainda não disponíveis, aguardando...")
 
-        time.sleep(cfg["poll_interval"])
+        time.sleep(POLL_INTERVAL)
 
 
 if __name__ == "__main__":
