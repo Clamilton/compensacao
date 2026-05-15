@@ -18,10 +18,11 @@ interface PlayerPayload {
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const { token, winnerTeam, duration, players } = body as {
+  const { token, winnerTeam, duration, players, gameId } = body as {
     token: string
     winnerTeam: number
     duration?: number
+    gameId?: string
     players: PlayerPayload[]
   }
 
@@ -31,6 +32,12 @@ export async function POST(request: Request) {
 
   if (![1, 2].includes(winnerTeam) || !Array.isArray(players) || players.length === 0) {
     return Response.json({ error: 'Dados inválidos' }, { status: 400 })
+  }
+
+  // Deduplicate by LCU game ID — multiple agents may submit the same match
+  if (gameId) {
+    const existing = await prisma.match.findUnique({ where: { lcuGameId: gameId } })
+    if (existing) return Response.json({ matchId: existing.id, duplicate: true }, { status: 200 })
   }
 
   const season = await prisma.season.findFirst({ where: { active: true } })
@@ -55,10 +62,11 @@ export async function POST(request: Request) {
   const match = await prisma.$transaction(async (tx) => {
     const m = await tx.match.create({
       data: {
-        seasonId: season.id,
+        seasonId:  season.id,
         winnerTeam,
-        duration: duration ?? null,
-        source: 'lcu',
+        duration:  duration ?? null,
+        source:    'lcu',
+        lcuGameId: gameId ?? null,
         players: {
           create: resolved.map((p) => ({
             playerId:    p.playerId,

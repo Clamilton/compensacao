@@ -92,6 +92,7 @@ def parse_eog(eog: dict) -> dict | None:
         print(f"  Ignorando — tipo de jogo: {game_type}")
         return None
 
+    game_id = str(eog.get("gameId", ""))
     duration = eog.get("gameLength")  # segundos
 
     teams_raw = eog.get("teams", [])
@@ -137,6 +138,7 @@ def parse_eog(eog: dict) -> dict | None:
         return None
 
     return {
+        "gameId":     game_id,
         "winnerTeam": winner_team,
         "duration":   duration,
         "players":    players,
@@ -150,7 +152,10 @@ def submit_match(cfg: dict, payload: dict) -> bool:
         r = requests.post(url, json=body, timeout=10)
         data = r.json()
         if r.ok:
-            print(f"  ✅ Partida registrada! matchId={data.get('matchId')}")
+            if data.get("duplicate"):
+                print(f"  ℹ️  Partida já registrada por outro agente (matchId={data.get('matchId')})")
+            else:
+                print(f"  ✅ Partida registrada! matchId={data.get('matchId')}")
             if data.get("notFound"):
                 print(f"  ⚠️  Jogadores não encontrados no banco: {data['notFound']}")
             return True

@@ -44,6 +44,7 @@ model Match {
   winnerTeam Int
   duration   Int?
   source     String        @default("manual")
+  lcuGameId  String?       @unique
   season     Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   players    MatchPlayer[]
 }
