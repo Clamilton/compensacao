@@ -32,6 +32,16 @@ export default function AdminPage() {
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` }
 
+  useEffect(() => {
+    const saved = localStorage.getItem('x5_admin_pwd')
+    if (!saved) return
+    setPassword(saved)
+    fetch('/api/seasons', { headers: { Authorization: `Bearer ${saved}` } }).then((res) => {
+      if (res.ok) { setAuthed(true); loadData() }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const flash = (text: string) => {
     setMsg(text)
     setTimeout(() => setMsg(''), 3000)
@@ -58,6 +68,7 @@ export default function AdminPage() {
       headers: { Authorization: `Bearer ${password}` },
     })
     if (res.ok) {
+      localStorage.setItem('x5_admin_pwd', password)
       setAuthed(true)
       loadData()
     } else {
@@ -204,6 +215,12 @@ export default function AdminPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-amber-400 tracking-wider">PAINEL ADMIN</h1>
+        <button
+          onClick={() => { localStorage.removeItem('x5_admin_pwd'); setAuthed(false); setPassword('') }}
+          className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        >
+          Sair
+        </button>
         {msg && (
           <span className="text-xs bg-green-900 text-green-300 px-3 py-1.5 rounded">{msg}</span>
         )}

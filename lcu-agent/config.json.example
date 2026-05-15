@@ -1,0 +1,5 @@
+{
+  "server_url": "https://veted.site",
+  "admin_token": "SUA_SENHA_ADMIN_AQUI",
+  "poll_interval": 5
+}

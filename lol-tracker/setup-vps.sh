@@ -8,14 +8,14 @@ set -e
 REPO_DIR="/var/www/veted/repo"
 APP_DIR="$REPO_DIR/lol-tracker"
 APP_PORT=3002
-DOMAIN="veted.online"
+DOMAIN="veted.site"
 REPO="https://github.com/Clamilton/compensacao.git"
 BRANCH="claude/lol-score-tracker-MXLzA"
-ADMIN_PASS="x5admin"
+ADMIN_PASS='TnV&mnrRR#65'
 
 # Credenciais Supabase (projeto veted)
-DB_POOL="postgresql://postgres.rqrdddcegqtypcgtfmwv:TnV%26mnrRR%2365@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DB_DIRECT="postgresql://postgres:TnV%26mnrRR%2365@db.rqrdddcegqtypcgtfmwv.supabase.co:5432/postgres"
+DB_POOL="postgresql://postgres.rqrdddcegqtypcgtfmwv:TnV%26mnrRR%2312@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DB_DIRECT="postgresql://postgres:TnV%26mnrRR%2312@db.rqrdddcegqtypcgtfmwv.supabase.co:5432/postgres"
 
 echo "============================================"
 echo " X5 Tracker — Setup na VPS"

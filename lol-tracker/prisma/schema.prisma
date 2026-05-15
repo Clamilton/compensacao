@@ -42,15 +42,28 @@ model Match {
   seasonId   Int
   createdAt  DateTime      @default(now())
   winnerTeam Int
+  duration   Int?
+  source     String        @default("manual")
   season     Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   players    MatchPlayer[]
 }
 
 model MatchPlayer {
-  id       Int    @id @default(autoincrement())
-  matchId  Int
-  playerId Int
-  team     Int
-  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  id          Int     @id @default(autoincrement())
+  matchId     Int
+  playerId    Int
+  team        Int
+  champion    String?
+  kills       Int?
+  deaths      Int?
+  assists     Int?
+  gold        Int?
+  damage      Int?
+  healing     Int?
+  wardsPlaced Int?
+  wardsKilled Int?
+  cs          Int?
+  visionScore Int?
+  match       Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player      Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
 }

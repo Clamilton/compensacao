@@ -6,6 +6,7 @@ export default function Nav() {
   const path = usePathname()
   const links = [
     { href: '/', label: 'PLACAR' },
+    { href: '/history', label: 'HISTÓRICO' },
     { href: '/balancer', label: 'BALANCEADOR' },
     { href: '/admin', label: 'ADMIN' },
   ]
