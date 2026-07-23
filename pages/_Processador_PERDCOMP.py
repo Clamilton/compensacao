@@ -50,6 +50,19 @@ def limpar_valor(valor_str):
     except: 
         return 0.0
 
+MESES = {
+    "JAN": "01", "FEV": "02", "MAR": "03", "ABR": "04", "MAI": "05", "JUN": "06",
+    "JUL": "07", "AGO": "08", "SET": "09", "OUT": "10", "NOV": "11", "DEZ": "12"
+}
+
+def converter_pa_diario(pa_bruto):
+    # "Dia 25 de set de 2023" -> "25/09/2023"
+    m = re.search(r'(\d{1,2})\s+de\s+([A-Za-zÀ-ÿ]+)\s+de\s+(\d{4})', pa_bruto, re.IGNORECASE)
+    if not m: return pa_bruto
+    dia, mes_txt, ano = m.group(1), m.group(2).upper()[:3], m.group(3)
+    mes = MESES.get(mes_txt)
+    return f"{int(dia):02d}/{mes}/{ano}" if mes else pa_bruto
+
 def padronizar_nome_imposto(codigo, descricao):
     if codigo and len(codigo) >= 4:
         raiz = codigo[:4]
@@ -123,6 +136,16 @@ def extrair_dados_pdf(arquivo, cnpj_alvo):
         # Ex: "Número do Processo 19414.483686/2025-95"
         match_proc = re.search(r'N[úu]mero do Processo\D*?([\d.]+/\d{4}-\d{2})', bloco, re.IGNORECASE | re.DOTALL)
         processo_fiscal = match_proc.group(1) if match_proc else ""
+
+        # --- VENCIMENTO ---
+        # Débito de tributo normal usa "Data de Vencimento do Tributo/Quota".
+        # Débito de Multa/Juros por Auto de Infração usa outro rótulo.
+        def get_data(k):
+            m = re.search(f'{k}\\D*?(\\d{{2}}/\\d{{2}}/\\d{{4}})', bloco, re.IGNORECASE | re.DOTALL)
+            return m.group(1) if m else None
+
+        vencimento = (get_data('Data de Vencimento do Tributo/Quota')
+                      or get_data(r'Vencimento do Auto de Infra[çc][ãa]o'))
         
         # --- LÓGICA: PERIODICIDADE ---
         # 1. Extrai a Periodicidade (Mensal, Trimestral, Anual)
@@ -132,17 +155,21 @@ def extrair_dados_pdf(arquivo, cnpj_alvo):
         pa_bruto = get('Período de Apuração') or ""
         
         # 3. Aplica a Regra
-        if "ANUAL" in periodicidade.upper():
+        periodicidade_norm = periodicidade.upper()
+        if "ANUAL" in periodicidade_norm:
             # Se for ANUAL: Pega apenas os 4 dígitos do ano (ex: "2024" de "Ano 2024")
             match_ano = re.search(r'\d{4}', pa_bruto)
             pa_final = match_ano.group(0) if match_ano else pa_bruto
+        elif "DIÁRIO" in periodicidade_norm or "DIARIO" in periodicidade_norm:
+            # Se for DIÁRIO: Converte "Dia 25 de set de 2023" -> "25/09/2023"
+            pa_final = converter_pa_diario(pa_bruto)
         else:
             # Se for MENSAL ou TRIMESTRAL: Mantém o texto original (ex: "Janeiro de 2026")
             pa_final = pa_bruto
 
         linhas.append({
             "PA": pa_final,
-            "VENCIMENTO": get('Data de Vencimento do Tributo/Quota'), 
+            "VENCIMENTO": vencimento,
             "IMPOSTO": padronizar_nome_imposto(cod, desc_bruta),
             "CÓDIGO": cod,
             "VALOR PRINCIPAL": limpar_valor(get('Principal','vl')),
@@ -152,7 +179,8 @@ def extrair_dados_pdf(arquivo, cnpj_alvo):
             "VALOR COMPENSADO": tot,
             "SALDO DÉBITO": 0.0,
             "PERDCOMP VINCULADA": num_perd,
-            "NUMERO DO PROCESSO FISCAL": processo_fiscal
+            "PROCESSO FISCAL VINCULADO": processo_fiscal,
+            "ANOTAÇÕES": ""
         })
         
     return linhas, nome_empresa, "OK"
