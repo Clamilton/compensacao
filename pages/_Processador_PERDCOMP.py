@@ -118,6 +118,11 @@ def extrair_dados_pdf(arquivo, cnpj_alvo):
             tot = limpar_valor(get('Principal','vl')) + limpar_valor(get('Multa','vl')) + limpar_valor(get('Juros','vl'))
             
         desc_bruta = get('Grupo de Tributo') or ""
+
+        # --- NÚMERO DO PROCESSO FISCAL ---
+        # Ex: "Número do Processo 19414.483686/2025-95"
+        match_proc = re.search(r'N[úu]mero do Processo\D*?([\d.]+/\d{4}-\d{2})', bloco, re.IGNORECASE | re.DOTALL)
+        processo_fiscal = match_proc.group(1) if match_proc else ""
         
         # --- LÓGICA: PERIODICIDADE ---
         # 1. Extrai a Periodicidade (Mensal, Trimestral, Anual)
@@ -147,7 +152,7 @@ def extrair_dados_pdf(arquivo, cnpj_alvo):
             "VALOR COMPENSADO": tot,
             "SALDO DÉBITO": 0.0,
             "PERDCOMP VINCULADA": num_perd,
-            "PROCESSO FISCAL": ""
+            "NUMERO DO PROCESSO FISCAL": processo_fiscal
         })
         
     return linhas, nome_empresa, "OK"
